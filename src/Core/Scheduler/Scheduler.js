@@ -8,9 +8,12 @@ import PriorityQueue from 'js-priority-queue';
 import WMTS_Provider from './Providers/WMTS_Provider';
 import WMS_Provider from './Providers/WMS_Provider';
 import TileProvider from './Providers/TileProvider';
-import $3dTiles_Provider from './Providers/3dTiles_Provider';
+// import $3dTiles_Provider from './Providers/3dTiles_Provider';
 import TMS_Provider from './Providers/TMS_Provider';
 import PointCloudProvider from './Providers/PointCloudProvider';
+
+const $3dTiles_Provider = __NO3DTILES__ ? null : require('./Providers/3dTiles_Provider');
+
 
 var instanceScheduler = null;
 

@@ -3,6 +3,8 @@ var webpack = require('webpack');
 
 var definePlugin = new webpack.DefinePlugin({
     __DEBUG__: JSON.stringify(process.env.NODE_ENV === 'development'),
+    __NOPROJ4__: JSON.stringify(process.env.proj4 === 'false'),
+    __NO3DTILES__: JSON.stringify(process.env.threedtiles === 'false'),
 });
 
 var providePlugin = new webpack.ProvidePlugin({

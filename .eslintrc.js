@@ -82,6 +82,8 @@ module.exports = {
     'no-continue': 'off',
   },
   "globals": {
-    "__DEBUG__": false
+    "__DEBUG__": false,
+    "__NOPROJ4__": false,
+    "__NO3DTILES__": false
   }
 }

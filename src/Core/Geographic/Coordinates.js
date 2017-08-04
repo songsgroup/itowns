@@ -5,9 +5,10 @@
  */
 
 import * as THREE from 'three';
-import proj4 from 'proj4';
 import mE from '../Math/MathExtended';
 import Ellipsoid from '../Math/Ellipsoid';
+
+const proj4 = __NOPROJ4__ ? null : require('proj4');
 
 export function ellipsoidSizes() {
     return {
@@ -42,11 +43,13 @@ export function crsToUnit(crs) {
         case 'EPSG:4326' : return UNIT.DEGREE;
         case 'EPSG:4978' : return UNIT.METER;
         default: {
-            const p = proj4.defs(crs);
-            if (!p) {
-                return undefined;
+            if (!__NOPROJ4__) {
+                const p = proj4.defs(crs);
+                if (!p) {
+                    return undefined;
+                }
+                return _unitFromProj4Unit(p.units);
             }
-            return _unitFromProj4Unit(p.units);
         }
     }
 }
@@ -124,16 +127,16 @@ function _convert(coordsIn, newCrs) {
             });
             return new Coordinates(newCrs, geo.longitude, geo.latitude, geo.h);
         }
-
-        if (coordsIn.crs in proj4.defs && newCrs in proj4.defs) {
-            const p = proj4(coordsIn.crs, newCrs, [coordsIn._values[0], coordsIn._values[1]]);
-            return new Coordinates(newCrs,
-                                   p[0],
-                                   p[1],
-                                   coordsIn._values[2]);
+        if (!__NOPROJ4__) {
+            if (coordsIn.crs in proj4.defs && newCrs in proj4.defs) {
+                const p = proj4(coordsIn.crs, newCrs, [coordsIn._values[0], coordsIn._values[1]]);
+                return new Coordinates(newCrs,
+                                       p[0],
+                                       p[1],
+                                       coordsIn._values[2]);
+            }
+            throw new Error(`Cannot convert from crs ${coordsIn.crs} (unit=${coordsIn._internalStorageUnit}) to ${newCrs}`);
         }
-
-        throw new Error(`Cannot convert from crs ${coordsIn.crs} (unit=${coordsIn._internalStorageUnit}) to ${newCrs}`);
     }
 }
 

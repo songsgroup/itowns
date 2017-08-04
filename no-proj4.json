@@ -1,0 +1,3 @@
+{
+	"no-proj4": "cross-env proj4=false"
+}
