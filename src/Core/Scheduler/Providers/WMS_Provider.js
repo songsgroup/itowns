@@ -86,16 +86,23 @@ WMS_Provider.prototype.getColorTexture = function getColorTexture(tile, layer) {
     const url = this.url(coords, layer);
     const pitch = new THREE.Vector3(0, 0, 1);
     const result = { pitch };
-
-    return OGCWebServiceHelper.getColorTextureByUrl(url, layer.networkOptions).then((texture) => {
-        result.texture = texture;
+    if (layer.service) {
+        result.texture = layer.service.getTexture(tile.extent, 256);
         result.texture.extent = tile.extent; // useless?
         result.texture.coords = coords;
-        // LayeredMaterial expects coords.zoom to exist, and describe the
-        // precision of the texture (a la WMTS).
         result.texture.coords.zoom = tile.level;
-        return result;
-    });
+        return Promise.resolve(result);
+    } else {
+        return OGCWebServiceHelper.getColorTextureByUrl(url, layer.networkOptions).then((texture) => {
+            result.texture = texture;
+            result.texture.extent = tile.extent; // useless?
+            result.texture.coords = coords;
+            // LayeredMaterial expects coords.zoom to exist, and describe the
+            // precision of the texture (a la WMTS).
+            result.texture.coords.zoom = tile.level;
+            return result;
+        });
+    }
 };
 
 WMS_Provider.prototype.executeCommand = function executeCommand(command) {

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 // containing our dependencies.
 export { THREE };
 export { default as proj4 } from 'proj4';
+export { default as togeojson } from 'togeojson';
 
 export { default as Coordinates, UNIT } from './Core/Geographic/Coordinates';
 export { default as Extent } from './Core/Geographic/Extent';
@@ -23,4 +24,5 @@ export { default as PointsMaterial } from './Renderer/PointsMaterial';
 export { default as PointCloudProcessing } from './Process/PointCloudProcessing';
 export { default as FlyControls } from './Renderer/ThreeExtended/FlyControls';
 export { default as GeoJSON2Three } from './Renderer/ThreeExtended/GeoJSON2Three';
+export { default as GeoJSON2Texture } from './Renderer/ThreeExtended/GeoJSON2Texture';
 export { CONTROL_EVENTS } from './Renderer/ThreeExtended/GlobeControls';

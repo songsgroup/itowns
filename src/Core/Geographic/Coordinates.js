@@ -42,6 +42,7 @@ function _unitFromProj4Unit(projunit) {
 export function crsToUnit(crs) {
     switch (crs) {
         case 'EPSG:4326' : return UNIT.DEGREE;
+        case 'EPSG:4236' : return UNIT.DEGREE;
         case 'EPSG:4978' : return UNIT.METER;
         default: {
             const p = proj4.defs(crs);
@@ -423,6 +424,10 @@ Coordinates.prototype.z = function z() {
 
 Coordinates.prototype.xyz = function xyz(target) {
     _assertIsGeocentric(this.crs);
+    return this.toVector3(target);
+};
+
+Coordinates.prototype.toVector3 = function toVector3(target) {
     const v = target || new THREE.Vector3();
     v.fromArray(this._values);
     return v;

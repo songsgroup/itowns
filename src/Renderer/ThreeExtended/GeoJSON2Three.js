@@ -54,13 +54,13 @@ const GeometryToVertices = {
         const vertices = [];
         for (const c of coords) {
             if (filteringExtent && filteringExtent.isPointInside(c)) {
-                vertices.push(c.xyz());
+                vertices.push(coords[0]._internalStorageUnit === 0 ? c.xyz() : c.toVector3());
             }
         }
         return { type: 'point', vertices };
     },
 
-    polygon(crsIn, crsOut, coordinates, filteringExtent) {
+    polygon(crsIn, crsOut, coordinates, filteringExtent, buildIndice = true) {
         const contour = readCoordinates(crsIn, crsOut, coordinates[0]);
 
         if (filteringExtent && !filteringExtent.isPointInside(contour[0])) {
@@ -70,32 +70,40 @@ const GeometryToVertices = {
         const vertices = new Array(3 * contour.length);
         let offset = 0;
         for (const vertex of contour) {
-            const v = vertex.xyz();
+            const v = vertex._internalStorageUnit === 0 ? vertex.xyz() : vertex.toVector3();
             v.toArray(vertices, offset);
             vertices2.push(v);
             offset += 3;
         }
 
-        const triangles = Earcut(vertices, null, 3);
+        let triangles;
+
+        if (buildIndice) {
+            triangles = Earcut(vertices, null, 3);
+        }
         // TODO: handle holes
 
         return { type: 'polygon', vertices: vertices2, indices: triangles };
     },
 
-    lineString(crsIn, crsOut, coordinates, filteringExtent) {
+    lineString(crsIn, crsOut, coordinates, filteringExtent, buildIndice = true) {
         const coords = readCoordinates(crsIn, crsOut, coordinates);
         if (filteringExtent && !filteringExtent.isPointInside(coords[0])) {
             return;
         }
 
         const vertices = [];
+
         for (const c of coords) {
-            vertices.push(c.xyz());
+            vertices.push(coords[0]._internalStorageUnit === 0 ? c.xyz() : c.toVector3());
         }
+
         const indices = [];
-        for (let i = 0; i < coords.length - 1; i++) {
-            indices.push(i);
-            indices.push(i + 1);
+        if (buildIndice) {
+            for (let i = 0; i < coords.length - 1; i++) {
+                indices.push(i);
+                indices.push(i + 1);
+            }
         }
 
         return { type: 'linestring', vertices, indices };
@@ -127,10 +135,10 @@ const GeometryToVertices = {
         return result;
     },
 
-    multiLineString(crsIn, crsOut, coordinates, filteringExtent) {
+    multiLineString(crsIn, crsOut, coordinates, filteringExtent, toMesh) {
         let result;
         for (const line of coordinates) {
-            const l = this.lineString(crsIn, crsOut, line, filteringExtent);
+            const l = this.lineString(crsIn, crsOut, line, filteringExtent, toMesh);
             if (!l) {
                 return;
             }
@@ -141,10 +149,10 @@ const GeometryToVertices = {
         return result;
     },
 
-    multiPolygon(crsIn, crsOut, coordinates, filteringExtent) {
+    multiPolygon(crsIn, crsOut, coordinates, filteringExtent, toMesh) {
         let result;
         for (const polygon of coordinates) {
-            const p = this.polygon(crsIn, crsOut, polygon, filteringExtent);
+            const p = this.polygon(crsIn, crsOut, polygon, filteringExtent, toMesh);
             if (!p) {
                 return;
             }
@@ -156,29 +164,29 @@ const GeometryToVertices = {
     },
 };
 
-function readGeometry(crsIn, crsOut, json, filteringExtent) {
+function readGeometry(crsIn, crsOut, json, filteringExtent, toMesh) {
     switch (json.type.toLowerCase()) {
         case 'point':
             return GeometryToVertices.point(crsIn, crsOut, [json.coordinates], filteringExtent);
         case 'multipoint':
             return GeometryToVertices.point(crsIn, crsOut, json.coordinates, filteringExtent);
         case 'linestring':
-            return GeometryToVertices.lineString(crsIn, crsOut, json.coordinates, filteringExtent);
+            return GeometryToVertices.lineString(crsIn, crsOut, json.coordinates, filteringExtent, toMesh);
         case 'multilinestring':
-            return GeometryToVertices.multiLineString(crsIn, crsOut, json.coordinates, filteringExtent);
+            return GeometryToVertices.multiLineString(crsIn, crsOut, json.coordinates, filteringExtent, toMesh);
         case 'polygon':
-            return GeometryToVertices.polygon(crsIn, crsOut, json.coordinates, filteringExtent);
+            return GeometryToVertices.polygon(crsIn, crsOut, json.coordinates, filteringExtent, toMesh);
         case 'multipolygon':
-            return GeometryToVertices.multiPolygon(crsIn, crsOut, json.coordinates, filteringExtent);
+            return GeometryToVertices.multiPolygon(crsIn, crsOut, json.coordinates, filteringExtent, toMesh);
         case 'geometrycollection':
         default:
             throw new Error(`Unhandled geometry type ${json.type}`);
     }
 }
 
-function readFeature(crsIn, crsOut, json, filteringExtent) {
+function readFeature(crsIn, crsOut, json, filteringExtent, toMesh) {
     const feature = {};
-    feature.geometry = readGeometry(crsIn, crsOut, json.geometry, filteringExtent);
+    feature.geometry = readGeometry(crsIn, crsOut, json.geometry, filteringExtent, toMesh);
 
     if (!feature.geometry) {
         return;
@@ -239,12 +247,12 @@ function featureToThree(feature) {
     return mesh;
 }
 
-function readFeatureCollection(crsIn, crsOut, json, filteringExtent) {
+function readFeatureCollection(crsIn, crsOut, json, filteringExtent, toMesh) {
     const collec = [];
 
     let featureIndex = 0;
     for (const feature of json.features) {
-        const f = readFeature(crsIn, crsOut, feature, filteringExtent);
+        const f = readFeature(crsIn, crsOut, feature, filteringExtent, toMesh);
         if (f) {
             f.geometry.featureIndex = featureIndex;
             collec.push(f);
@@ -259,27 +267,27 @@ function readFeatureCollection(crsIn, crsOut, json, filteringExtent) {
             polygons: collec.filter(c => c.geometry.type === 'polygon'),
         };
 
-        const result = new THREE.Group();
+        const result = toMesh ? new THREE.Group() : { children: [], add: function add(c) { this.children.push(c); } };
         if (geom.points.length) {
             const idx = result.children.length;
             geom.points.forEach((f, index) => { f.properties._idx = index; f.properties._meshIdx = idx; });
             const g = geom.points.map(p => p.geometry);
             const p = GeometryToVertices.merge(...g);
-            result.add(verticesToMesh(p));
+            result.add(toMesh ? verticesToMesh(p) : p);
         }
         if (geom.lines.length) {
             const idx = result.children.length;
             geom.lines.forEach((f, index) => { f.properties._idx = index; f.properties._meshIdx = idx; });
             const g = geom.lines.map(p => p.geometry);
             const p = GeometryToVertices.merge(...g);
-            result.add(verticesToMesh(p));
+            result.add(toMesh ? verticesToMesh(p) : p);
         }
         if (geom.polygons.length) {
             const idx = result.children.length;
             geom.polygons.forEach((f, index) => { f.properties._idx = index; f.properties._meshIdx = idx; });
             const g = geom.polygons.map(p => p.geometry);
             const p = GeometryToVertices.merge(...g);
-            result.add(verticesToMesh(p));
+            result.add(toMesh ? verticesToMesh(p) : p);
         }
         // remember individual features properties
         // eslint-disable-next-line arrow-body-style
@@ -291,13 +299,13 @@ function readFeatureCollection(crsIn, crsOut, json, filteringExtent) {
 }
 
 export default {
-    parse(crsOut, json, filteringExtent) {
+    parse(crsOut, json, filteringExtent, toMesh) {
         const crsIn = readCRS(json);
         switch (json.type.toLowerCase()) {
             case 'featurecollection':
-                return readFeatureCollection(crsIn, crsOut, json, filteringExtent);
+                return readFeatureCollection(crsIn, crsOut, json, filteringExtent, toMesh);
             case 'feature':
-                return featureToThree(readFeature(crsIn, crsOut, json, filteringExtent));
+                return featureToThree(readFeature(crsIn, crsOut, json, filteringExtent, toMesh));
             default:
                 throw new Error(`Unsupported GeoJSON type: '${json.type}`);
         }

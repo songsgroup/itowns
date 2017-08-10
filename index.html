@@ -34,8 +34,7 @@ and open the template in the editor.
         <script src="dist/debug.js"></script>
         <script type="text/javascript">
             /* global itowns,document,GuiTools*/
-
-            var positionOnGlobe = { longitude: 2.351323, latitude: 48.856712, altitude: 25000000 };
+            var positionOnGlobe = { longitude: 6.78, latitude: 45.9056, altitude: 14000 };
 
             // iTowns namespace defined here
             var viewerDiv = document.getElementById('viewerDiv');
@@ -45,9 +44,9 @@ and open the template in the editor.
 
             var promises = []
             promises.push(itowns.Fetcher.json('examples/layers/JSONLayers/Ortho.json').then(function(result) { return globeView.addLayer(result); }));
-            promises.push(itowns.Fetcher.json('examples/layers/JSONLayers/OrthosCRS.json').then(function(result) { return globeView.addLayer(result); }));
-            promises.push(itowns.Fetcher.json('examples/layers/JSONLayers/ScanEX.json').then(function(result) { return globeView.addLayer(result); }));
-            promises.push(itowns.Fetcher.json('examples/layers/JSONLayers/Region.json').then(function(result) { return globeView.addLayer(result); }));
+            // promises.push(itowns.Fetcher.json('examples/layers/JSONLayers/OrthosCRS.json').then(function(result) { return globeView.addLayer(result); }));
+            // promises.push(itowns.Fetcher.json('examples/layers/JSONLayers/ScanEX.json').then(function(result) { return globeView.addLayer(result); }));
+            // promises.push(itowns.Fetcher.json('examples/layers/JSONLayers/Region.json').then(function(result) { return globeView.addLayer(result); }));
 
             promises.push(itowns.Fetcher.json('examples/layers/JSONLayers/WORLD_DTM.json').then(function(result) { return globeView.addLayer(result); }));
             promises.push(itowns.Fetcher.json('examples/layers/JSONLayers/IGN_MNT_HIGHRES.json').then(function(result) { return globeView.addLayer(result); }));
@@ -61,9 +60,49 @@ and open the template in the editor.
                 console.info('menuGlobe initialized');
             }).catch( function (e) { console.error(e) });
 
+            itowns.Fetcher.xml('examples/layers/croquis.kml').then(result => {
+                itowns.proj4.defs("EPSG:4236", "+proj=longlat +ellps=intl +towgs84=-637,-549,-203,0,0,0,0 +no_defs");
+                itowns.proj4.defs("EPSG:4978", "+proj=geocent +datum=WGS84 +no_defs");
+                itowns.proj4.defs("EPSG:4326", "+proj=longlat +datum=WGS84 +no_defs");
+                const extent = new itowns.Extent('EPSG:4326', -180, 180, -90, 90);
+                const features = itowns.GeoJSON2Three.parse('EPSG:4326', itowns.togeojson.kml(result), extent, false);
+
+                const autoLayer = {
+                    type: 'color',
+                    service: itowns.GeoJSON2Texture.createServiseWMS(features),
+                    url: '',
+                    protocol: 'wms',
+                    version: '1.3.0',
+                    id: 'Kml',
+                    name: 'Kml dessin',
+                    projection: 'EPSG:4326',
+                    extent: {
+                        west: 6,
+                        east: 7,
+                        south: 45,
+                        north: 46,
+                    },
+                    transparent: true,
+                    heightMapWidth: 256,
+                    updateStrategy: {
+                        type: 0,
+                        options: {},
+                    },
+                    options: {
+                        mimetype: 'image/png',
+                        zoom: {
+                            min: 8,
+                            max: 21,
+                        },
+                    },
+                };
+                globeView.addLayer(autoLayer);
+                menuGlobe.addImageryLayersGUI(globeView.getLayers(function (l) { return l.id === 'Features'; }))
+            });
             globeView.addEventListener(itowns.GLOBE_VIEW_EVENTS.GLOBE_INITIALIZED, function () {
                 // eslint-disable-next-line no-console
                 console.info('Globe initialized');
+                globeView.controls.setTilt(45);
             });
 
             const d = new debug.Debug(globeView, menuGlobe.gui);
